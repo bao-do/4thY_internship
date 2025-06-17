@@ -59,7 +59,7 @@ class FFTResBlock(torch.nn.Module):
 class FFTResNet(torch.nn.Module):
     def __init__(self,input_size,c_out_list):
         super().__init__()
-        layers = torch.nn.ModuleList()
+        layers = []
         self.input_size = input_size
         self.c_out_list = c_out_list
         layers.append(FFTResBlock(1,c_out_list[0],input_size))
@@ -67,9 +67,32 @@ class FFTResNet(torch.nn.Module):
             layers.append(FFTResBlock(c_out_list[i],c_out_list[i+1],input_size))
             # layers.append(torch.nn.BatchNorm2d(num_features=c_out_list[i+1]))
         layers.append(FFTResBlock(c_out_list[-1],1,input_size))
-        self.layers = torch.nn.Sequential(layers)
+        self.layers = torch.nn.Sequential(*layers)
 
-    def forward(self,x):
+    def forward(self,x):  # forward(self, x, sigma)
+        # x = torch.cat([x, sigma_mask], dim = 1)
+        x = self.layers(x)
+        return F.relu(x)
+
+
+class FFTResNet_varied_noise(torch.nn.Module):
+    def __init__(self,input_size,c_out_list):
+        super().__init__()
+        layers = []
+        self.input_size = input_size
+        self.c_out_list = c_out_list
+        layers.append(FFTResBlock(2,c_out_list[0],input_size))
+        for i in range(len(c_out_list)-1):
+            layers.append(FFTResBlock(c_out_list[i],c_out_list[i+1],input_size))
+            # layers.append(torch.nn.BatchNorm2d(num_features=c_out_list[i+1]))
+        layers.append(FFTResBlock(c_out_list[-1],1,input_size))
+        self.layers = torch.nn.Sequential(*layers)
+
+    def forward(self, x, sigma):
+        # print("xin chao",x.device,sigma.device)
+        sigma_mask = torch.ones(x.size(0),1,28,28,device=x.device)*sigma
+        # print(sigma_mask.device)
+        x = torch.cat([x, sigma_mask], dim = 1)
         x = self.layers(x)
         return F.relu(x)
         
